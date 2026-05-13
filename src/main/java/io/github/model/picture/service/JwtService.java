@@ -9,6 +9,8 @@ import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Date;
 
 /**
@@ -26,8 +28,23 @@ public class JwtService {
         if (secret == null || secret.isBlank()) {
             throw new IllegalStateException("mp.security.jwt.secret 未配置");
         }
-        this.secretKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+        this.secretKey = buildSecretKey(secret);
         this.expirationSeconds = jwtProperties.getExpirationSeconds();
+    }
+
+    /**
+     * 将配置密钥转换为 HMAC-SHA 可用的 SecretKey
+     */
+    private static SecretKey buildSecretKey(String secret) {
+        byte[] secretBytes = secret.getBytes(StandardCharsets.UTF_8);
+        if (secretBytes.length >= 32) {
+            return Keys.hmacShaKeyFor(secretBytes);
+        }
+        try {
+            return Keys.hmacShaKeyFor(MessageDigest.getInstance("SHA-256").digest(secretBytes));
+        } catch (NoSuchAlgorithmException exception) {
+            throw new IllegalStateException("SHA-256 不可用", exception);
+        }
     }
 
     /**
